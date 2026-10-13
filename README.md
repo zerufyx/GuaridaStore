@@ -1,8 +1,8 @@
 # Guarida Store — cliente
 
-Catálogo privado (*Private Shop*) de zapatos, gafas, gorras, lociones, bolsas y ropa, con carrito y pedido por WhatsApp. **Cliente** de Zerufy Studio. El repo se llama `Underblock` porque el catálogo se diseñó primero para esa marca y después pasó a Guarida.
+Catálogo privado (*Private Shop*) de zapatos, gafas, gorras, lociones, bolsas y ropa, con carrito y pedido por WhatsApp. **Cliente** de Zerufy Studio. El catálogo se diseñó primero para la marca Underblock y después pasó a Guarida.
 
-**En línea:** https://underblock.pages.dev (Cloudflare Pages) · https://zerufyx.github.io/Underblock/ (dominio guaridastore.com pendiente)
+**En línea:** https://guarida.pages.dev (Cloudflare Pages) · panel en https://guarida.pages.dev/admin (dominio guaridastore.com pendiente)
 
 | Archivo | Qué es |
 |---|---|
