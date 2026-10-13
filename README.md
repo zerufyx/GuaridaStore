@@ -11,7 +11,6 @@ Catálogo privado (*Private Shop*) de zapatos, gafas, gorras, lociones, bolsas y
 | `index.html` | Catálogo: intro de cámara de seguridad con el logo en grafiti, pestañas por categoría, buscador, favoritos, ficha con tallas y colores, carrito con nombre, teléfono y envío/personal (igual que Zerufy), pedido registrado con número (`create_order`) y mensaje a WhatsApp con el link de cada producto |
 | `admin.html` | Panel del cliente: productos, fotos, carga rápida, precios y ofertas, tallas, colores, agotado/oculto, pedidos (estado pendiente/pagado/enviado/cancelado), categorías y ajustes |
 | `icon-512.png` | Imagen de vista previa al compartir el link |
-| `functions/index.js` | Función de Cloudflare Pages: cuando el link trae `?p=ID`, la vista previa (WhatsApp, Instagram) muestra la foto, el nombre y el precio de ese producto |
 
 **Supabase:** sistema de Tiendas, `store_id = 7` (slug `guarida-store`). Tablas `stores`, `categories`, `products` y `orders`. Fotos en el bucket `store-products`, carpeta `7/`. Solo se usa la llave pública.
 
