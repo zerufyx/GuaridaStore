@@ -169,6 +169,26 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 120px}
 .cat-row .cnt{font-size:13.5px;color:var(--muted);margin-left:14px}
 .add-cat{display:flex;gap:10px;margin-top:14px}
 
+/* Pedidos */
+.olist{display:flex;flex-direction:column;gap:10px}
+.order{border:1px solid var(--line);background:var(--panel);padding:14px}
+.order.done{opacity:.55}
+.o-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.o-num{font-family:var(--display);font-weight:400;font-size:24px;letter-spacing:.03em;line-height:1}
+.o-date{color:var(--muted);font-size:14px}
+.o-top .sp{flex:1}
+.o-st{height:40px;width:auto;min-width:130px;font-weight:700}
+.o-st[data-v="pendiente"]{border-color:var(--warn);color:var(--warn)}
+.o-st[data-v="pagado"]{border-color:var(--ok);color:var(--ok)}
+.o-cust{margin-top:10px;font-weight:700;font-size:16.5px}
+.o-cust a{color:var(--fg);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.o-how{color:#d6d6d6;font-size:15px;margin-top:2px}
+.o-items{list-style:none;margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.o-items li{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:15px}
+.o-items img,.o-items .noimg{width:44px;height:44px;object-fit:cover;background:#111}
+.o-items .pr{font-weight:700;white-space:nowrap}
+.o-total{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-weight:700;font-size:16px}
+
 /* Ajustes */
 .settings{display:flex;flex-direction:column;gap:16px;max-width:520px}
 
@@ -222,6 +242,7 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 120px}
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="products" aria-selected="true">Productos <span class="n" id="nProd">0</span></button>
+      <button class="tab" role="tab" data-tab="orders" aria-selected="false">Pedidos <span class="n" id="nOrd">0</span></button>
       <button class="tab" role="tab" data-tab="cats" aria-selected="false">Categorías <span class="n" id="nCat">0</span></button>
       <button class="tab" role="tab" data-tab="settings" aria-selected="false">Ajustes</button>
     </nav>
@@ -247,6 +268,22 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 120px}
       <button class="btn btn-main fab" id="newProd">
         <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo producto
       </button>
+    </div>
+
+    <!-- Pedidos -->
+    <div id="tab-orders" class="hide">
+      <div class="toolbar">
+        <select class="inp" id="oState" aria-label="Filtrar pedidos">
+          <option value="">Todos los pedidos</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="pagado">Pagados</option>
+          <option value="enviado">Enviados / entregados</option>
+          <option value="cancelado">Cancelados</option>
+        </select>
+        <button class="btn btn-line btn-sm" id="oReload" type="button">Actualizar</button>
+      </div>
+      <div class="olist" id="oList"></div>
+      <p class="hint" style="margin-top:12px">Cada pedido del carrito llega a tu WhatsApp y también queda guardado aquí con su número. Cambia el estado cuando te paguen o lo entregues.</p>
     </div>
 
     <!-- Categorías -->
@@ -437,7 +474,7 @@ function compress(file,max=1400,q=.85){
 }
 
 /* ================= ESTADO ================= */
-let STORE=null, CATS=[], PRODS=[], EDIT=null;
+let STORE=null, CATS=[], PRODS=[], ORDERS=[], EDIT=null;
 const money=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let tt; function toast(t,bad){ const e=$("#toast"); e.textContent=t; e.classList.toggle("bad",!!bad); e.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove("on"),2400); }
@@ -461,7 +498,7 @@ async function boot(){
   const st = await api(`stores?select=*&slug=eq.${STORE_SLUG}&owner_user_id=eq.${session.user.id}`);
   if(!st.length){ logout(); $("#loginErr").textContent="Esta cuenta no administra Guarida Store."; return; }
   STORE=st[0];
-  await Promise.all([loadCats(),loadProds()]);
+  await Promise.all([loadCats(),loadProds(),loadOrders().catch(()=>{ ORDERS=[]; renderOrders(); })]);
   fillSettings();
   $("#login").classList.add("hide"); $("#app").classList.remove("hide");
 }
@@ -471,7 +508,8 @@ async function loadProds(){ PRODS=await api(`products?select=*&store_id=eq.${STO
 /* ================= TABS ================= */
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x===t));
-  ["products","cats","settings"].forEach(k=>$("#tab-"+k).classList.toggle("hide",k!==t.dataset.tab));
+  ["products","orders","cats","settings"].forEach(k=>$("#tab-"+k).classList.toggle("hide",k!==t.dataset.tab));
+  if(t.dataset.tab==="orders") loadOrders().catch(err=>toast(err.message,true));
   scrollTo(0,0);
 });
 
@@ -685,6 +723,40 @@ $("#pDelete").onclick=async()=>{
     closeEditor(); await loadProds(); toast("Producto borrado"); }
   catch(err){ toast(err.message.includes("foreign key")?"No se puede borrar: tiene movimientos registrados. Ocúltalo en su lugar.":err.message,true); }
 };
+
+/* ================= PEDIDOS ================= */
+const OSTATES=[["pendiente","Pendiente"],["pagado","Pagado"],["enviado","Enviado / entregado"],["cancelado","Cancelado"]];
+async function loadOrders(){ ORDERS=await api(`orders?select=*&store_id=eq.${STORE.id}&order=created_at.desc&limit=300`)||[]; renderOrders(); }
+function waNum(ph){ let d=String(ph||"").replace(/\D/g,""); if(d.length===10) d="1"+d; return d; }
+function renderOrders(){
+  $("#nOrd").textContent=ORDERS.filter(o=>(o.status||"pendiente")==="pendiente").length;
+  const f=$("#oState").value, r=ORDERS.filter(o=>!f||(o.status||"pendiente")===f);
+  if(!r.length){ $("#oList").innerHTML=`<div class="empty list"><strong>${ORDERS.length?"Nada en este filtro":"Aún no hay pedidos"}</strong>${ORDERS.length?"Cambia el filtro para ver los demás.":"Cuando un cliente confirme su carrito, el pedido aparece aquí."}</div>`; return; }
+  $("#oList").innerHTML=r.map(o=>{
+    const st=o.status||"pendiente", items=Array.isArray(o.items)?o.items:[];
+    const when=new Date(o.created_at).toLocaleString("es",{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"});
+    const how=o.customer_address?`Envío: ${esc(o.customer_address)}`:"Entrega personal (se coordina)";
+    const note=(o.note||"").split(" · ").slice(1).join(" · ");
+    const wa=waNum(o.customer_phone);
+    return `<article class="order ${st==="cancelado"||st==="enviado"?"done":""}">
+      <div class="o-top"><b class="o-num">${esc(o.order_number||("P-"+o.id))}</b><span class="o-date">${esc(when)}</span><span class="sp"></span>
+        <select class="inp o-st" data-oid="${o.id}" data-v="${st}" aria-label="Estado del pedido">${OSTATES.map(([v,l])=>`<option value="${v}" ${v===st?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div class="o-cust">${esc(o.customer_name)}${o.customer_phone?` · ${wa.length>=10?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a>`:esc(o.customer_phone)}`:""}</div>
+      <div class="o-how">${how}${note?` · Nota: ${esc(note)}`:""}</div>
+      <ul class="o-items">${items.map(i=>{ const meta=[i.color,i.size?"Talla "+i.size:null].filter(Boolean).join(" / "); const q=i.qty||1;
+        return `<li>${i.image?`<img src="${esc(i.image)}" alt="" loading="lazy">`:'<span class="noimg"></span>'}<span>${q>1?q+"× ":""}${esc(i.name)}${meta?` <span class="hint">(${esc(meta)})</span>`:""}</span><span class="pr">${i.price>0?money(i.price*q):"A consultar"}</span></li>`; }).join("")}</ul>
+      <div class="o-total"><span>Total</span><span>${money(o.total)}</span></div>
+    </article>`;
+  }).join("");
+}
+$("#oState").addEventListener("input",renderOrders);
+$("#oReload").onclick=()=>loadOrders().then(()=>toast("Pedidos actualizados")).catch(err=>toast(err.message,true));
+$("#oList").addEventListener("change",async e=>{
+  const s=e.target.closest(".o-st"); if(!s) return;
+  const o=ORDERS.find(x=>x.id===+s.dataset.oid), v=s.value, prev=o.status||"pendiente";
+  try{ await api(`orders?id=eq.${o.id}`,{method:"PATCH",body:{status:v}}); o.status=v; renderOrders(); toast(`${o.order_number||"Pedido"}: ${OSTATES.find(x=>x[0]===v)[1].toLowerCase()}`); }
+  catch(err){ s.value=prev; toast(err.message,true); }
+});
 
 /* ================= CATEGORÍAS ================= */
 function renderCats(){
